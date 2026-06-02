@@ -21,8 +21,13 @@ class Settings(BaseSettings):
     chroma_port: int = Field(default=8001)
     chroma_collection: str = Field(default="strategyshifu")
 
-    # Gemini
+    # Gemini (kept for backward compat, no longer used by default)
     gemini_api_key: str = Field(default="")
+
+    # Ollama
+    ollama_base_url: str = Field(default="http://localhost:11434")
+    ollama_chat_model: str = Field(default="llama3.2")
+    ollama_embed_model: str = Field(default="nomic-embed-text")
 
     # App
     upload_dir: str = Field(default="./uploads")

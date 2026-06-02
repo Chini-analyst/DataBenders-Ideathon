@@ -9,7 +9,10 @@ export function useGraph() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [neighbourhood, setNeighbourhood] = useState<GraphData>({ nodes: [], edges: [] });
+  const [neighbourhoodLoading, setNeighbourhoodLoading] = useState(false);
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
+  const [neighbourhoodDepth, setNeighbourhoodDepth] = useState(2);
 
   const fetchGraph = useCallback(async () => {
     setLoading(true);
@@ -21,7 +24,6 @@ export function useGraph() {
       ]);
       setGraphData(data);
       setStats(statsData);
-      // Initialise all types as active
       const types = new Set(data.nodes.map((n) => n.type));
       setActiveTypes(types);
     } catch (err) {
@@ -34,6 +36,31 @@ export function useGraph() {
   useEffect(() => {
     fetchGraph();
   }, [fetchGraph]);
+
+  // Fetch multi-hop neighbourhood from the backend when a node is selected
+  const fetchNeighbourhood = useCallback(
+    async (nodeId: string, depth: number) => {
+      setNeighbourhoodLoading(true);
+      try {
+        const data = await api.getNodeNeighbourhood(nodeId, depth);
+        setNeighbourhood(data);
+      } catch {
+        // Fall back to local 1-hop if the endpoint fails
+        const connectedEdges = graphData.edges.filter(
+          (e) => e.source === nodeId || e.target === nodeId
+        );
+        const ids = new Set<string>();
+        connectedEdges.forEach((e) => { ids.add(e.source); ids.add(e.target); });
+        setNeighbourhood({
+          nodes: graphData.nodes.filter((n) => ids.has(n.id)),
+          edges: connectedEdges,
+        });
+      } finally {
+        setNeighbourhoodLoading(false);
+      }
+    },
+    [graphData]
+  );
 
   const filteredData = useCallback((): GraphData => {
     if (activeTypes.size === 0) return graphData;
@@ -48,33 +75,32 @@ export function useGraph() {
   const toggleType = useCallback((type: string) => {
     setActiveTypes((prev) => {
       const next = new Set(prev);
-      if (next.has(type)) {
-        next.delete(type);
-      } else {
-        next.add(type);
-      }
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
       return next;
     });
   }, []);
 
-  const selectNode = useCallback((node: GraphNode | null) => {
-    setSelectedNode(node);
-  }, []);
-
-  const getNodeNeighbours = useCallback(
-    (nodeId: string): { nodes: GraphNode[]; edges: GraphEdge[] } => {
-      const connectedEdges = graphData.edges.filter(
-        (e) => e.source === nodeId || e.target === nodeId
-      );
-      const neighbourIds = new Set<string>();
-      connectedEdges.forEach((e) => {
-        neighbourIds.add(e.source);
-        neighbourIds.add(e.target);
-      });
-      const neighbourNodes = graphData.nodes.filter((n) => neighbourIds.has(n.id));
-      return { nodes: neighbourNodes, edges: connectedEdges };
+  const selectNode = useCallback(
+    (node: GraphNode | null) => {
+      setSelectedNode(node);
+      if (node) {
+        fetchNeighbourhood(node.id, neighbourhoodDepth);
+      } else {
+        setNeighbourhood({ nodes: [], edges: [] });
+      }
     },
-    [graphData]
+    [fetchNeighbourhood, neighbourhoodDepth]
+  );
+
+  const changeDepth = useCallback(
+    (depth: number) => {
+      setNeighbourhoodDepth(depth);
+      if (selectedNode) {
+        fetchNeighbourhood(selectedNode.id, depth);
+      }
+    },
+    [selectedNode, fetchNeighbourhood]
   );
 
   return {
@@ -84,10 +110,13 @@ export function useGraph() {
     loading,
     error,
     selectedNode,
+    neighbourhood,
+    neighbourhoodLoading,
+    neighbourhoodDepth,
     activeTypes,
     fetchGraph,
     toggleType,
     selectNode,
-    getNodeNeighbours,
+    changeDepth,
   };
 }

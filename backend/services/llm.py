@@ -1,6 +1,7 @@
 """
-Gemini API wrapper for answer generation.
-Requires GEMINI_API_KEY to be set in .env — raises HTTP 503 if missing.
+Ollama wrapper for answer generation.
+Uses the chat model configured in settings (default: llama3.2).
+Raises HTTP 503 if Ollama is unreachable.
 """
 from __future__ import annotations
 
@@ -36,42 +37,50 @@ Answer:"""
 
 def generate_answer(question: str, sources: List[Source]) -> tuple[str, float]:
     """
-    Generate an answer using Gemini 1.5 Flash.
+    Generate an answer using Ollama.
     Returns (answer_text, generation_time_ms).
-    Raises HTTP 503 if GEMINI_API_KEY is not configured.
+    Raises HTTP 503 if Ollama is unreachable.
     """
-    if not settings.gemini_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="GEMINI_API_KEY is not configured. Add it to backend/.env and restart the server.",
-        )
+    import requests
 
+    prompt = _build_prompt(question, sources)
+    payload = {
+        "model": settings.ollama_chat_model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.3,
+            "num_predict": 1024,
+        },
+    }
+
+    start = time.perf_counter()
     try:
-        import google.generativeai as genai
-
-        genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        prompt = _build_prompt(question, sources)
-
-        start = time.perf_counter()
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.3,
-                max_output_tokens=1024,
-            ),
+        resp = requests.post(
+            f"{settings.ollama_base_url}/api/generate",
+            json=payload,
+            timeout=120,
         )
+        resp.raise_for_status()
         elapsed_ms = (time.perf_counter() - start) * 1000
-
-        answer = response.text.strip()
-        logger.info("Gemini generated answer in {:.1f}ms", elapsed_ms)
+        answer = resp.json().get("response", "").strip()
+        logger.info("Ollama generated answer in {:.1f}ms", elapsed_ms)
         return answer, elapsed_ms
 
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Gemini API error: {}", exc)
+    except requests.exceptions.ConnectionError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Ollama is not reachable at {settings.ollama_base_url}. "
+                   f"Make sure Ollama is running: `ollama serve`. Error: {exc}",
+        )
+    except requests.exceptions.HTTPError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Gemini API request failed: {exc}",
+            detail=f"Ollama API error: {exc}",
+        )
+    except Exception as exc:
+        logger.error("Ollama generate error: {}", exc)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Ollama request failed: {exc}",
         )

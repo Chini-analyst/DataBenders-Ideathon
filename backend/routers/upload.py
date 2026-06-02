@@ -42,11 +42,26 @@ async def _run_ingestion(record: UploadRecord, file_path: str) -> None:
         record.status = IngestionStatus.PROCESSING
         _uploads[record.id] = record
 
-        text_content = parse_file(file_path)
+        # Use structured parsers for tabular files so the graph builder
+        # receives column-level metadata instead of just flat text.
+        ext = Path(file_path).suffix.lower()
+        structured_meta = None
+
+        if ext == ".csv":
+            from parsers.csv_parser import parse_csv_structured
+            text_content, structured_meta = parse_csv_structured(file_path)
+        elif ext in (".xlsx", ".xls"):
+            from parsers.excel_parser import parse_excel_structured
+            text_content, structured_meta = parse_excel_structured(file_path)
+        else:
+            text_content = parse_file(file_path)
+
         if not text_content.strip():
             raise ValueError("No text content could be extracted from the file")
 
-        chunk_count, node_count, edge_count = ingest_document(record, text_content)
+        chunk_count, node_count, edge_count = ingest_document(
+            record, text_content, structured_meta=structured_meta
+        )
 
         record.status = IngestionStatus.COMPLETED
         record.completed_at = datetime.utcnow()

@@ -17,28 +17,27 @@ from models.query import RetrievalMode, Source
 
 
 # ---------------------------------------------------------------------------
-# Embedding — Gemini text-embedding-004 with local fallback
+# Embedding — Ollama with local hash fallback
 # ---------------------------------------------------------------------------
 
 def _get_embedding(text: str) -> List[float]:
     """
-    Embed text using Gemini text-embedding-004.
-    Falls back to a deterministic hash-based vector only if the Gemini SDK
-    is not installed (development without API key).
+    Embed text using Ollama (nomic-embed-text by default).
+    Falls back to a deterministic hash-based vector if Ollama is unreachable.
     """
     try:
-        import google.generativeai as genai
+        import requests
         from core.config import settings
-        if settings.gemini_api_key:
-            genai.configure(api_key=settings.gemini_api_key)
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
-                task_type="retrieval_query",
-            )
-            return result["embedding"]
+        payload = {"model": settings.ollama_embed_model, "prompt": text}
+        resp = requests.post(
+            f"{settings.ollama_base_url}/api/embeddings",
+            json=payload,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["embedding"]
     except Exception as exc:
-        logger.warning("Gemini embedding failed, using hash fallback: {}", exc)
+        logger.warning("Ollama embedding failed, using hash fallback: {}", exc)
 
     # Hash-based fallback (no external dependency)
     seed = int(hashlib.md5(text.encode()).hexdigest(), 16)

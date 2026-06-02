@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from models.graph import GraphData, GraphStatsResponse, SubgraphResponse
-from services.graph_service import get_all_edges, get_all_nodes, get_subgraph_for_doc
+from services.graph_service import get_all_edges, get_all_nodes, get_subgraph_for_doc, get_node_neighbourhood
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
@@ -56,3 +56,12 @@ def get_subgraph(doc_id: str):
         node_count=len(graph.nodes),
         edge_count=len(graph.edges),
     )
+
+
+@router.get("/neighbourhood/{node_id}", response_model=GraphData)
+def get_neighbourhood(node_id: str, depth: int = 2):
+    """
+    Return all nodes and edges within `depth` hops of the given node.
+    depth=1 → direct neighbours only, depth=2 → neighbours of neighbours (default).
+    """
+    return get_node_neighbourhood(node_id, depth=min(depth, 3))

@@ -155,6 +155,77 @@ def get_subgraph_for_doc(doc_id: str) -> GraphData:
         raise HTTPException(status_code=500, detail=f"Failed to fetch subgraph: {exc}")
 
 
+def get_node_neighbourhood(node_id: str, depth: int = 2) -> GraphData:
+    """
+    Return all nodes and edges reachable from node_id within `depth` hops.
+    depth=1 → direct neighbours, depth=2 → neighbours of neighbours, etc.
+    """
+    driver = _require_driver()
+    try:
+        with driver.session() as session:
+            # Variable-length path up to `depth` hops in either direction
+            result = session.run(
+                """
+                MATCH path = (start {id: $node_id})-[*1..$depth]-(neighbour)
+                WITH nodes(path) AS ns, relationships(path) AS rs
+                UNWIND ns AS n
+                WITH collect(DISTINCT n) AS all_nodes, rs
+                UNWIND rs AS r
+                WITH all_nodes, collect(DISTINCT r) AS all_rels
+                RETURN all_nodes, all_rels
+                """,
+                node_id=node_id,
+                depth=depth,
+            )
+            record = result.single()
+            if not record:
+                return GraphData(nodes=[], edges=[])
+
+            nodes: List[Node] = []
+            seen_node_ids: set = set()
+            for neo_node in record["all_nodes"]:
+                labels = list(neo_node.labels)
+                node_type = labels[0] if labels else "Unknown"
+                props = dict(neo_node.items())
+                nid = str(props.pop("id", neo_node.element_id))
+                if nid in seen_node_ids:
+                    continue
+                seen_node_ids.add(nid)
+                nodes.append(Node(
+                    id=nid,
+                    label=props.pop("name", props.pop("label", nid)),
+                    type=node_type,
+                    properties=props,
+                    doc_id=props.get("doc_id"),
+                ))
+
+            edges: List[Edge] = []
+            seen_edge_ids: set = set()
+            for rel in record["all_rels"]:
+                eid = str(rel.element_id)
+                if eid in seen_edge_ids:
+                    continue
+                seen_edge_ids.add(eid)
+                src_props = dict(rel.start_node.items())
+                tgt_props = dict(rel.end_node.items())
+                src_id = str(src_props.get("id", rel.start_node.element_id))
+                tgt_id = str(tgt_props.get("id", rel.end_node.element_id))
+                edges.append(Edge(
+                    id=eid,
+                    source=src_id,
+                    target=tgt_id,
+                    relationship=rel.type,
+                    properties=dict(rel.items()),
+                ))
+
+            return GraphData(nodes=nodes, edges=edges)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Neo4j get_node_neighbourhood error: {}", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch neighbourhood: {exc}")
+
+
 def upsert_node(
     node_id: str,
     label: str,

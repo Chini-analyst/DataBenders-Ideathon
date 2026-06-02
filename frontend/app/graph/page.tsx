@@ -13,11 +13,14 @@ export default function GraphPage() {
     loading,
     error,
     selectedNode,
+    neighbourhood,
+    neighbourhoodLoading,
+    neighbourhoodDepth,
     activeTypes,
     fetchGraph,
     toggleType,
     selectNode,
-    getNodeNeighbours,
+    changeDepth,
   } = useGraph();
 
   return (
@@ -29,11 +32,9 @@ export default function GraphPage() {
             <GitFork className="w-6 h-6 text-gold-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-100">
-              Knowledge Graph
-            </h1>
+            <h1 className="text-2xl font-semibold text-slate-100">Knowledge Graph</h1>
             <p className="text-sm text-slate-400 mt-0.5">
-              Explore entity relationships extracted from your documents
+              Click any node to explore its connections up to 3 hops away
             </p>
           </div>
         </div>
@@ -86,12 +87,16 @@ export default function GraphPage() {
           />
         </div>
 
-        {/* Node detail panel */}
+        {/* Node detail panel — shown when a node is selected */}
         {selectedNode && (
           <NodeDetailPanel
             node={selectedNode}
-            neighbours={getNodeNeighbours(selectedNode.id)}
+            neighbourhood={neighbourhood}
+            neighbourhoodLoading={neighbourhoodLoading}
+            depth={neighbourhoodDepth}
+            onDepthChange={changeDepth}
             onClose={() => selectNode(null)}
+            onNodeClick={selectNode}
           />
         )}
       </div>
