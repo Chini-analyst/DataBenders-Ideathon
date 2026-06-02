@@ -4,23 +4,61 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { GraphData, GraphNode } from "@/lib/api";
 import { Loader2, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-// Node type colour mapping
+// Node type colour mapping — covers all types from the row-level graph builder
 const NODE_COLORS: Record<string, string> = {
-  Organization: "#f59e0b",  // gold
-  Person: "#60a5fa",        // blue
-  Concept: "#a78bfa",       // purple
-  Location: "#34d399",      // green
-  Document: "#fb923c",      // orange
-  Unknown: "#94a3b8",       // slate
+  // tabular entity types
+  Person:            "#60a5fa",  // blue
+  Department:        "#f59e0b",  // gold
+  JobTitle:          "#a78bfa",  // violet
+  Skill:             "#34d399",  // emerald
+  Project:           "#fb923c",  // orange
+  Location:          "#4ade80",  // green
+  SalaryBand:        "#facc15",  // yellow
+  EmploymentType:    "#22d3ee",  // cyan
+  PerformanceRating: "#fb7185",  // rose
+  Status:            "#94a3b8",  // slate
+  Priority:          "#f87171",  // red
+  ProficiencyLevel:  "#2dd4bf",  // teal
+  Certification:     "#a3e635",  // lime
+  Client:            "#f472b6",  // pink
+  Budget:            "#fbbf24",  // amber
+  Date:              "#818cf8",  // indigo
+  Headcount:         "#38bdf8",  // sky
+  Category:          "#c084fc",  // purple
+  EmployeeID:        "#e879f9",  // fuchsia
+  Entity:            "#94a3b8",  // slate (generic fallback)
+  // legacy NER types
+  Organization:      "#f59e0b",
+  Concept:           "#a78bfa",
+  Document:          "#fb923c",
+  Unknown:           "#64748b",
 };
 
 const NODE_SIZES: Record<string, number> = {
-  Organization: 10,
-  Person: 8,
-  Concept: 7,
-  Location: 8,
-  Document: 9,
-  Unknown: 6,
+  Person:            9,
+  Department:        10,
+  JobTitle:          7,
+  Skill:             7,
+  Project:           9,
+  Location:          7,
+  SalaryBand:        5,
+  EmploymentType:    5,
+  PerformanceRating: 5,
+  Status:            5,
+  Priority:          5,
+  ProficiencyLevel:  5,
+  Certification:     5,
+  Client:            7,
+  Budget:            5,
+  Date:              5,
+  Headcount:         5,
+  Category:          6,
+  EmployeeID:        6,
+  Entity:            6,
+  Organization:      10,
+  Concept:           7,
+  Document:          9,
+  Unknown:           5,
 };
 
 interface GraphCanvasProps {

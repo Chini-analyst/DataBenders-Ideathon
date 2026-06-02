@@ -13,11 +13,20 @@ export default function GraphPage() {
     loading,
     error,
     selectedNode,
+    neighbourhood,
+    neighbourhoodLoading,
+    neighbourhoodDepth,
     activeTypes,
-    fetchGraph,
     toggleType,
+    selectAllTypes,
+    deselectAllTypes,
+    activeRelTypes,
+    toggleRelType,
+    selectAllRelTypes,
+    deselectAllRelTypes,
+    fetchGraph,
     selectNode,
-    getNodeNeighbours,
+    changeDepth,
   } = useGraph();
 
   return (
@@ -29,11 +38,9 @@ export default function GraphPage() {
             <GitFork className="w-6 h-6 text-gold-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-100">
-              Knowledge Graph
-            </h1>
+            <h1 className="text-2xl font-semibold text-slate-100">Knowledge Graph</h1>
             <p className="text-sm text-slate-400 mt-0.5">
-              Explore entity relationships extracted from your documents
+              Click any node to explore its connections up to 3 hops away
             </p>
           </div>
         </div>
@@ -42,10 +49,14 @@ export default function GraphPage() {
           {stats && (
             <div className="flex gap-4 text-sm">
               <span className="text-slate-400">
-                <span className="text-gold-400 font-semibold">{stats.total_nodes}</span> nodes
+                <span className="text-gold-400 font-semibold">{filteredData.nodes.length}</span>
+                <span className="text-slate-600">/{stats.total_nodes}</span>
+                {" "}nodes
               </span>
               <span className="text-slate-400">
-                <span className="text-gold-400 font-semibold">{stats.total_edges}</span> edges
+                <span className="text-gold-400 font-semibold">{filteredData.edges.length}</span>
+                <span className="text-slate-600">/{stats.total_edges}</span>
+                {" "}edges
               </span>
             </div>
           )}
@@ -74,6 +85,12 @@ export default function GraphPage() {
           stats={stats}
           activeTypes={activeTypes}
           onToggleType={toggleType}
+          onSelectAllTypes={selectAllTypes}
+          onDeselectAllTypes={deselectAllTypes}
+          activeRelTypes={activeRelTypes}
+          onToggleRelType={toggleRelType}
+          onSelectAllRelTypes={selectAllRelTypes}
+          onDeselectAllRelTypes={deselectAllRelTypes}
         />
 
         {/* Graph canvas */}
@@ -90,8 +107,12 @@ export default function GraphPage() {
         {selectedNode && (
           <NodeDetailPanel
             node={selectedNode}
-            neighbours={getNodeNeighbours(selectedNode.id)}
+            neighbourhood={neighbourhood}
+            neighbourhoodLoading={neighbourhoodLoading}
+            depth={neighbourhoodDepth}
+            onDepthChange={changeDepth}
             onClose={() => selectNode(null)}
+            onNodeClick={selectNode}
           />
         )}
       </div>

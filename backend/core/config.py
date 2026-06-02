@@ -21,8 +21,16 @@ class Settings(BaseSettings):
     chroma_port: int = Field(default=8001)
     chroma_collection: str = Field(default="strategyshifu")
 
-    # Gemini
+    # Gemini (legacy — unused)
     gemini_api_key: str = Field(default="")
+
+    # Groq
+    groq_api_key: str = Field(default="")
+    groq_chat_model: str = Field(default="llama-3.3-70b-versatile")
+
+    # Embeddings — Ollama nomic-embed-text (Groq has no embedding API)
+    ollama_base_url: str = Field(default="http://localhost:11434")
+    ollama_embed_model: str = Field(default="nomic-embed-text")
 
     # App
     upload_dir: str = Field(default="./uploads")
